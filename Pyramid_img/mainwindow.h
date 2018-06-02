@@ -7,6 +7,8 @@
 class QFileDialog;
 class QLabel;
 class QComboBox;
+class QDoubleSpinBox;
+class QPushButton;
 
 class MainWindow : public QMainWindow
 {
@@ -18,16 +20,21 @@ public:
 
 private slots:
     void open();
-    void save();
     void selectFileName();
     void selectLayer();
+    void clickedOkFaktor();
 
 private:
     void createActions();
     void createMenus();
-    void createComboBoxLayer();
+    void createMainWidget();
+    void addItemComboBoxLayer();
+    void initWidgets();
+    void fileBoxSetEnabled(bool);
+    void factorBoxSetHidden(bool);
     bool setLoadFile(const QString &);
     void sortItemsComboBox(const QString &);
+    void setFactorForImage(double);
 
     QMap <QString, int> map;
     QComboBox *comboBoxFileName;
@@ -36,8 +43,9 @@ private:
     QImage *image;
     QImage *currentOriginalImage;
     QLabel *sizeImage;
+    QDoubleSpinBox *factorSpinBox;
+    QPushButton *okFactor;
     QAction *openAct;
-    QAction *saveAct;
     QAction *exitAct;
 };
 
