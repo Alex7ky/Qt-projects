@@ -20,6 +20,8 @@
 
 MainWindow::MainWindow()
 {
+    listInfoImage = new QList <InfoImage>;
+
     createActions();
     createMenus();
     createMainWidget();
@@ -31,6 +33,7 @@ MainWindow::~MainWindow()
 {
     delete image;
     delete currentOriginalImage;
+    delete listInfoImage;
 }
 
 void MainWindow::createActions()
@@ -176,32 +179,53 @@ bool MainWindow::setLoadFile(const QString &fileName)
     return true;
 }
 
-void MainWindow::sortItemsComboBox(const QString &fileName)
+void MainWindow::addItemComboBoxFileName(const QString &fileName)
 {
-    QList <qreal> list = map.values();
-    //Sort by the size of the diagonal of the image
-    std::stable_sort(list.begin(), list.end());
+    int index = getIndexListInfoImage(fileName);
 
-    QMap <QString, qreal> tmpMap = map;
-    QList <qreal>::iterator i;
+    //Данного файла нет в списке сomboBoxFileName
+    if (index == -1) {
+        InfoImage newInfoImage;
+        QFile file;
+        QFileInfo fileInfo;
 
-    QFile file;
-    QFileInfo fileInfo;
+        newInfoImage.diagonal = calcDiagonalImage();
+        newInfoImage.pathName.append(fileName);
 
-    comboBoxFileName->clear();
-
-    for (i = list.begin(); i != list.end(); ++i) {
-        file.setFileName(tmpMap.key(*i));
+        file.setFileName(fileName);
         fileInfo.setFile(file.fileName());
-        comboBoxFileName->addItem(fileInfo.fileName(), tmpMap.key(*i));
 
-        //Set the name of the open file in QComboBox
-        if (fileName == tmpMap.key(*i))
-            comboBoxFileName->setCurrentText(fileInfo.fileName());
+        listInfoImage->append(newInfoImage);
 
-        //To avoid the case when there are images with equal diagonal
-        tmpMap.remove(tmpMap.key(*i));
+        sortItemsComboBox();
+
+        //Получаем индекс вставки
+        index = getIndexListInfoImage(file.fileName());
+
+        comboBoxFileName->insertItem(index, fileInfo.fileName(), file.fileName());
+        comboBoxFileName->setCurrentIndex(index);
+    } else {
+        //Файл уже загружен, выбираем из списка
+        comboBoxFileName->setCurrentIndex(index);
     }
+}
+
+void MainWindow::sortItemsComboBox()
+{
+    std::stable_sort(listInfoImage->begin(), listInfoImage->end());
+
+    int count = 0;
+
+    for (QList <InfoImage>::iterator i = listInfoImage->begin(); i != listInfoImage->end(); i++)
+        i->index = count++;
+}
+
+int MainWindow::getIndexListInfoImage(const QString &pathName)
+{
+    for (QList <InfoImage>::iterator i = listInfoImage->begin(); i != listInfoImage->end(); i++)
+         if (QString::compare(i->pathName, pathName) == 0)
+            return i->index;
+    return -1;
 }
 
 void MainWindow::setFactorForImage(double factor)
@@ -225,6 +249,7 @@ void MainWindow::open()
 {
     QFileDialog dialog;
     QStringList mimeTypeFilters;
+
     mimeTypeFilters << "image/jpeg" // will show "JPEG image (*.jpeg *.jpg *.jpe)
                     << "image/png"; // will show "PNG image (*.png)"
 
@@ -232,11 +257,7 @@ void MainWindow::open()
 
     while (dialog.exec() == QDialog::Accepted && !setLoadFile(dialog.selectedFiles().first())) {}
 
-    map.insert(dialog.selectedFiles().first(), calcDiagonalImage());
-
-    sortItemsComboBox(dialog.selectedFiles().first());
-
-    comboBoxLayer->setCurrentIndex(0);
+    addItemComboBoxFileName(dialog.selectedFiles().first());
 
     fileBoxSetEnabled(true);
 }
@@ -245,11 +266,12 @@ void MainWindow::selectFileName()
 {
     if (!setLoadFile(comboBoxFileName->currentData().toString())) {
         //File not found
-        map.remove(comboBoxFileName->currentData().toString());
 
-        if (map.size() > 0) {
+        if (listInfoImage->count() > 0) {
+            comboBoxFileName->removeItem(comboBoxFileName->currentIndex());
+            listInfoImage->removeAt(comboBoxFileName->currentIndex());
             comboBoxFileName->setCurrentIndex(0);
-            sortItemsComboBox(comboBoxFileName->currentData().toString());
+            sortItemsComboBox();
             selectFileName();
         } else {
             comboBoxFileName->clear();

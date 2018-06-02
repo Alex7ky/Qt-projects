@@ -33,7 +33,9 @@ private:
     void fileBoxSetEnabled(bool);
     void factorBoxSetHidden(bool);
     bool setLoadFile(const QString &);
-    void sortItemsComboBox(const QString &);
+    void addItemComboBoxFileName(const QString &);
+    void sortItemsComboBox();
+    int getIndexListInfoImage(const QString &);
     void setFactorForImage(double);
     int calcDiagonalImage();
 
@@ -48,6 +50,19 @@ private:
     QPushButton *okFactor;
     QAction *openAct;
     QAction *exitAct;
+
+    class InfoImage {
+        public:
+            int index;
+            QString pathName;
+            qreal diagonal;
+
+            bool operator < (const InfoImage &ptr) const {
+                return this->diagonal < ptr.diagonal;
+            }
+    };
+
+    QList <InfoImage> *listInfoImage;
 };
 
 #endif // MAINWINDOW_H
