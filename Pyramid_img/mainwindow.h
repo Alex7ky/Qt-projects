@@ -35,8 +35,9 @@ private:
     bool setLoadFile(const QString &);
     void sortItemsComboBox(const QString &);
     void setFactorForImage(double);
+    int calcDiagonalImage();
 
-    QMap <QString, int> map;
+    QMap <QString, qreal> map;
     QComboBox *comboBoxFileName;
     QComboBox *comboBoxLayer;
     QLabel *imageLabel;

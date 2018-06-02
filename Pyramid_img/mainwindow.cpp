@@ -10,6 +10,7 @@
 #include <QScrollBar>
 #include <QScrollArea>
 #include <QImageReader>
+#include <QtMath>
 #include <algorithm>
 
 #include <QDebug>
@@ -31,7 +32,6 @@ MainWindow::~MainWindow()
     delete image;
     delete currentOriginalImage;
 }
-
 
 void MainWindow::createActions()
 {
@@ -58,18 +58,6 @@ void MainWindow::createMenus()
     menuBar->addMenu(fileMenu);
 
     setMenuBar(menuBar);
-}
-
-void MainWindow::addItemComboBoxLayer()
-{
-    comboBoxLayer->addItem("0", 1);
-    comboBoxLayer->addItem("1", 2);
-    comboBoxLayer->addItem("2", 4);
-    comboBoxLayer->addItem("3", 8);
-    comboBoxLayer->addItem("4", 16);
-    comboBoxLayer->addItem("own variant", 0);
-
-    connect(comboBoxLayer, SIGNAL(activated(int)), this, SLOT(selectLayer()));
 }
 
 void MainWindow::createMainWidget()
@@ -139,10 +127,28 @@ void MainWindow::createMainWidget()
     connect(okFactor, SIGNAL(clicked(bool)), this, SLOT(clickedOkFaktor()));
 }
 
+void MainWindow::addItemComboBoxLayer()
+{
+    comboBoxLayer->addItem("0", 1);
+    comboBoxLayer->addItem("1", 2);
+    comboBoxLayer->addItem("2", 4);
+    comboBoxLayer->addItem("3", 8);
+    comboBoxLayer->addItem("4", 16);
+    comboBoxLayer->addItem("own variant", 0);
+
+    connect(comboBoxLayer, SIGNAL(activated(int)), this, SLOT(selectLayer()));
+}
+
 void MainWindow::initWidgets()
 {
     fileBoxSetEnabled(false);
     factorBoxSetHidden(true);
+}
+
+void MainWindow::fileBoxSetEnabled(bool enabled)
+{
+    comboBoxFileName->setEnabled(enabled);
+    comboBoxLayer->setEnabled(enabled);
 }
 
 void MainWindow::factorBoxSetHidden(bool hidden)
@@ -151,10 +157,68 @@ void MainWindow::factorBoxSetHidden(bool hidden)
     okFactor->setHidden(hidden);
 }
 
-void MainWindow::fileBoxSetEnabled(bool enabled)
+bool MainWindow::setLoadFile(const QString &fileName)
 {
-    comboBoxFileName->setEnabled(enabled);
-    comboBoxLayer->setEnabled(enabled);
+    QImageReader reader(fileName);
+    reader.setAutoTransform(true);
+    const QImage newImage = reader.read();
+
+    if (newImage.isNull())
+        return false;
+
+    imageLabel->setPixmap(QPixmap::fromImage(newImage));
+    imageLabel->resize(newImage.size());
+
+    *currentOriginalImage = newImage;
+
+    sizeImage->setText(QString::number(newImage.width()) + "x" + QString::number(newImage.height()));
+
+    return true;
+}
+
+void MainWindow::sortItemsComboBox(const QString &fileName)
+{
+    QList <qreal> list = map.values();
+    //Sort by the size of the diagonal of the image
+    std::stable_sort(list.begin(), list.end());
+
+    QMap <QString, qreal> tmpMap = map;
+    QList <qreal>::iterator i;
+
+    QFile file;
+    QFileInfo fileInfo;
+
+    comboBoxFileName->clear();
+
+    for (i = list.begin(); i != list.end(); ++i) {
+        file.setFileName(tmpMap.key(*i));
+        fileInfo.setFile(file.fileName());
+        comboBoxFileName->addItem(fileInfo.fileName(), tmpMap.key(*i));
+
+        //Set the name of the open file in QComboBox
+        if (fileName == tmpMap.key(*i))
+            comboBoxFileName->setCurrentText(fileInfo.fileName());
+
+        //To avoid the case when there are images with equal diagonal
+        tmpMap.remove(tmpMap.key(*i));
+    }
+}
+
+void MainWindow::setFactorForImage(double factor)
+{
+    const QImage newImage = currentOriginalImage->scaled(currentOriginalImage->width() / factor, currentOriginalImage->height() / factor, Qt::IgnoreAspectRatio, Qt::FastTransformation);
+
+    imageLabel->setPixmap(QPixmap::fromImage(newImage));
+    sizeImage->setText(QString::number(newImage.width()) + "x" + QString::number(newImage.height()));
+}
+
+int MainWindow::calcDiagonalImage()
+{
+    qreal h = currentOriginalImage->height();
+    qreal w = currentOriginalImage->width();
+    qreal d = (h * h) + (w * w);
+
+    return qSqrt(d);
 }
 
 void MainWindow::open()
@@ -168,7 +232,7 @@ void MainWindow::open()
 
     while (dialog.exec() == QDialog::Accepted && !setLoadFile(dialog.selectedFiles().first())) {}
 
-    map.insert(dialog.selectedFiles().first(), currentOriginalImage->height());
+    map.insert(dialog.selectedFiles().first(), calcDiagonalImage());
 
     sortItemsComboBox(dialog.selectedFiles().first());
 
@@ -219,62 +283,7 @@ void MainWindow::selectLayer()
     setFactorForImage(factor);
 }
 
-void MainWindow::setFactorForImage(double factor)
-{
-    const QImage newImage = currentOriginalImage->scaled(currentOriginalImage->width() / factor, currentOriginalImage->height() / factor, Qt::IgnoreAspectRatio, Qt::FastTransformation);
-
-    imageLabel->setPixmap(QPixmap::fromImage(newImage));
-    sizeImage->setText(QString::number(newImage.width()) + "x" + QString::number(newImage.height()));
-}
-
 void MainWindow::clickedOkFaktor()
 {
     setFactorForImage(factorSpinBox->value());
-}
-
-bool MainWindow::setLoadFile(const QString &fileName)
-{
-    QImageReader reader(fileName);
-    reader.setAutoTransform(true);
-    const QImage newImage = reader.read();
-
-    if (newImage.isNull())
-        return false;
-
-    imageLabel->setPixmap(QPixmap::fromImage(newImage));
-    imageLabel->resize(newImage.size());
-
-    *currentOriginalImage = newImage;
-
-    sizeImage->setText(QString::number(newImage.width()) + "x" + QString::number(newImage.height()));
-
-    return true;
-}
-
-void MainWindow::sortItemsComboBox(const QString &fileName)
-{
-    QList <int> list = map.values();
-    //Sort by the size of the diagonal of the image
-    std::stable_sort(list.begin(), list.end());
-
-    QMap <QString, int> tmpMap = map;
-    QList <int>::iterator i;
-
-    QFile file;
-    QFileInfo fileInfo;
-
-    comboBoxFileName->clear();
-
-    for (i = list.begin(); i != list.end(); ++i) {
-        file.setFileName(tmpMap.key(*i));
-        fileInfo.setFile(file.fileName());
-        comboBoxFileName->addItem(fileInfo.fileName(), tmpMap.key(*i));
-
-        //Set the name of the open file in QComboBox
-        if (fileName == tmpMap.key(*i))
-            comboBoxFileName->setCurrentText(fileInfo.fileName());
-
-        //To avoid the case when there are images with equal diagonal
-        tmpMap.remove(tmpMap.key(*i));
-    }
 }
