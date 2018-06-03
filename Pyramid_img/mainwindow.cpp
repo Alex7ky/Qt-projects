@@ -13,8 +13,6 @@
 #include <QtMath>
 #include <algorithm>
 
-#include <QDebug>
-
 #define WIDTH 500
 #define HEIGHT 500
 
@@ -26,7 +24,8 @@ MainWindow::MainWindow()
     createMenus();
     createMainWidget();
 
-    initWidgets();
+    fileBoxSetEnabled(false);
+    factorBoxSetHidden(true);
 }
 
 MainWindow::~MainWindow()
@@ -36,7 +35,10 @@ MainWindow::~MainWindow()
     delete listInfoImage;
 }
 
-void MainWindow::createActions()
+/**
+ * Определяет действия открытия файла и завершение программы.
+ */
+void MainWindow::createActions(void)
 {
     openAct = new QAction(tr("&Open..."), this);
     openAct->setShortcuts(QKeySequence::Open);
@@ -49,7 +51,11 @@ void MainWindow::createActions()
     connect(exitAct, &QAction::triggered, this, &QWidget::close);
 }
 
-void MainWindow::createMenus()
+/**
+ * Создает меню для QMainWindow
+ * Добавляются действия открытия файла и завершение программы.
+ */
+void MainWindow::createMenus(void)
 {
     QMenuBar *menuBar = new QMenuBar(this);
     QMenu *fileMenu = new QMenu(tr("&File"), this);
@@ -63,7 +69,14 @@ void MainWindow::createMenus()
     setMenuBar(menuBar);
 }
 
-void MainWindow::createMainWidget()
+/**
+ * Создает основной виджет в который
+ * упаковываваются все остальные элементы
+ * (QLabel(imageLabel) для изображения, QComboBox для файлов и уровня сжатия,
+ * QDoubleSpinBox и QPushButton для установки своего коэффициента сжатия и др.)
+ * и устанавливает данный виджет в QMainWindow
+ */
+void MainWindow::createMainWidget(void)
 {
     QWidget *mainWidget    = new QWidget(this);
     QVBoxLayout *mainBox   = new QVBoxLayout;
@@ -130,7 +143,11 @@ void MainWindow::createMainWidget()
     connect(okFactor, SIGNAL(clicked(bool)), this, SLOT(clickedOkFaktor()));
 }
 
-void MainWindow::addItemComboBoxLayer()
+/**
+ * Добавляет элементы в comboBoxLayer
+ * определяющие уровень сжатия изображения
+ */
+void MainWindow::addItemComboBoxLayer(void)
 {
     comboBoxLayer->addItem("0", 1);
     comboBoxLayer->addItem("1", 2);
@@ -142,27 +159,41 @@ void MainWindow::addItemComboBoxLayer()
     connect(comboBoxLayer, SIGNAL(activated(int)), this, SLOT(selectLayer()));
 }
 
-void MainWindow::initWidgets()
-{
-    fileBoxSetEnabled(false);
-    factorBoxSetHidden(true);
-}
-
+/**
+ * Устанавлиет возможность взаимодествия с элементами
+ * comboBoxFileName и comboBoxLayer
+ *
+ * @param enabled значение взаимодествия (true - активный / false - неактивный)
+ */
 void MainWindow::fileBoxSetEnabled(bool enabled)
 {
     comboBoxFileName->setEnabled(enabled);
     comboBoxLayer->setEnabled(enabled);
 }
 
+/**
+ * Устанавлиет скрытие элементов factorSpinBox и okFactor
+ *
+ * @param hidden значение скрытия (true - невидимый / false - видимый)
+ */
 void MainWindow::factorBoxSetHidden(bool hidden)
 {
     factorSpinBox->setHidden(hidden);
     okFactor->setHidden(hidden);
 }
 
-bool MainWindow::setLoadFile(const QString &fileName)
+/**
+ * Загружает изображение и устанавливает в imageLabel
+ * в currentOriginalImage сохраняется оригинал изображения
+ *
+ * @param pathName Полный путь к файлу изображения
+ *
+ * @retval true  Файл загружен
+ * @retval false Файл не загружен
+ */
+bool MainWindow::loadFile(const QString &pathName)
 {
-    QImageReader reader(fileName);
+    QImageReader reader(pathName);
     reader.setAutoTransform(true);
     const QImage newImage = reader.read();
 
@@ -179,38 +210,47 @@ bool MainWindow::setLoadFile(const QString &fileName)
     return true;
 }
 
-void MainWindow::addItemComboBoxFileName(const QString &fileName)
+/**
+ * Добавление файла в listInfoImage и comboBoxFileName
+ *
+ * @param pathName полный путь к файлу изображения
+ */
+void MainWindow::addItemComboBoxFileName(const QString &pathName)
 {
-    int index = getIndexListInfoImage(fileName);
+    int index = getIndexListInfoImage(pathName);
 
-    //Данного файла нет в списке сomboBoxFileName
+    /* Данный файл отсуствует в списке listInfoImage (сomboBoxFileName) */
     if (index == -1) {
         InfoImage newInfoImage;
         QFile file;
         QFileInfo fileInfo;
 
         newInfoImage.diagonal = calcDiagonalImage();
-        newInfoImage.pathName.append(fileName);
+        newInfoImage.pathName.append(pathName);
 
-        file.setFileName(fileName);
+        file.setFileName(pathName);
         fileInfo.setFile(file.fileName());
 
         listInfoImage->append(newInfoImage);
 
         sortItemsComboBox();
 
-        //Получаем индекс вставки
         index = getIndexListInfoImage(file.fileName());
 
+        /* Добавляем новый итем и усатанвилем текущее отображаемое значение QComboBox */
         comboBoxFileName->insertItem(index, fileInfo.fileName(), file.fileName());
         comboBoxFileName->setCurrentIndex(index);
     } else {
-        //Файл уже загружен, выбираем из списка
+        /* Файл ранее был загружен, выбираем из списка */
         comboBoxFileName->setCurrentIndex(index);
     }
 }
 
-void MainWindow::sortItemsComboBox()
+/**
+ * Сортируем содержимое списка listInfoImage по диагонали
+ * Определяем индекс (i->index) для каждого listInfoImage в comboBoxFileName
+ */
+void MainWindow::sortItemsComboBox(void)
 {
     std::stable_sort(listInfoImage->begin(), listInfoImage->end());
 
@@ -220,6 +260,14 @@ void MainWindow::sortItemsComboBox()
         i->index = count++;
 }
 
+/**
+ * Получает позицию вставки в comboBoxFileName
+ *
+ * @param pathName Полный путь к файлу изображения
+ *
+ * @retval i->index Позиция вставки в comboBoxFileName
+ * @retval -1       Файл отсуствует в списке listInfoImage
+ */
 int MainWindow::getIndexListInfoImage(const QString &pathName)
 {
     for (QList <InfoImage>::iterator i = listInfoImage->begin(); i != listInfoImage->end(); i++)
@@ -228,6 +276,12 @@ int MainWindow::getIndexListInfoImage(const QString &pathName)
     return -1;
 }
 
+/**
+ * Устанавливает коэффициет сжатия изображения на текущее
+ * оригинальное изображение currentOriginalImage
+ *
+ * @param factor Коэффициет сжатия изображения
+ */
 void MainWindow::setFactorForImage(double factor)
 {
     const QImage newImage = currentOriginalImage->scaled(currentOriginalImage->width() / factor, currentOriginalImage->height() / factor, Qt::IgnoreAspectRatio, Qt::FastTransformation);
@@ -236,7 +290,12 @@ void MainWindow::setFactorForImage(double factor)
     sizeImage->setText(QString::number(newImage.width()) + "x" + QString::number(newImage.height()));
 }
 
-int MainWindow::calcDiagonalImage()
+/**
+ * Вычисяет диагональ изображения
+ *
+ * @retval qSqrt(d) Диагональ изображения currentOriginalImage
+ */
+int MainWindow::calcDiagonalImage(void)
 {
     qreal h = currentOriginalImage->height();
     qreal w = currentOriginalImage->width();
@@ -245,28 +304,38 @@ int MainWindow::calcDiagonalImage()
     return qSqrt(d);
 }
 
+/**
+ * Запускает диалоговое окно для открытия файла
+ * с устанавлинными фильтрами JPEG image (*.jpeg *.jpg *.jpe)
+ * и PNG image (*.png)
+ */
 void MainWindow::open()
 {
     QFileDialog dialog;
     QStringList mimeTypeFilters;
 
-    mimeTypeFilters << "image/jpeg" // will show "JPEG image (*.jpeg *.jpg *.jpe)
-                    << "image/png"; // will show "PNG image (*.png)"
+    mimeTypeFilters << "image/jpeg"
+                    << "image/png";
 
     dialog.setMimeTypeFilters(mimeTypeFilters);
 
-    while (dialog.exec() == QDialog::Accepted && !setLoadFile(dialog.selectedFiles().first())) {}
+    while (dialog.exec() == QDialog::Accepted && !loadFile(dialog.selectedFiles().first())) {}
 
     addItemComboBoxFileName(dialog.selectedFiles().first());
+
+    comboBoxLayer->setCurrentIndex(0);
 
     fileBoxSetEnabled(true);
 }
 
+/**
+ * Слот, запускается при выборе файла из QComboBox comboBoxFileName
+ */
 void MainWindow::selectFileName()
 {
-    if (!setLoadFile(comboBoxFileName->currentData().toString())) {
-        //File not found
-
+    if (!loadFile(comboBoxFileName->currentData().toString())) {
+        /* Файл не найден */
+        /* Удаляем из списка listInfoImage и запускаем рекурсивно selectFileName() */
         if (listInfoImage->count() > 0) {
             comboBoxFileName->removeItem(comboBoxFileName->currentIndex());
             listInfoImage->removeAt(comboBoxFileName->currentIndex());
@@ -284,19 +353,24 @@ void MainWindow::selectFileName()
     factorBoxSetHidden(true);
 }
 
+/**
+ * Слот, запускается при выборе уровня сжатия из QComboBox comboBoxLayer
+ */
 void MainWindow::selectLayer()
 {
     double factor = comboBoxLayer->currentData().toFloat();
 
     if (factor == 0) {
+        /* Выбран "свой вариант" уровня сжатия изображения */
         double maxFactor = 1;
-        //own variant
+        /* Устанавливаем коэффициент сжатия для оригинальнального размера изображения */
         factor = 1;
-
+        /* Определяем максимальный коэффициент сжатия */
         if (currentOriginalImage->width() <= currentOriginalImage->height())
             maxFactor = currentOriginalImage->width();
         else maxFactor = currentOriginalImage->height();
 
+        factorSpinBox->setValue(1.0);
         factorSpinBox->setMaximum(maxFactor);
 
         factorBoxSetHidden(false);
@@ -305,6 +379,10 @@ void MainWindow::selectLayer()
     setFactorForImage(factor);
 }
 
+/**
+ * Слот, запускается при клике на QPushButton okFactor
+ * устанавливает коэффицент сжатия изображения (свой вариант)
+ */
 void MainWindow::clickedOkFaktor()
 {
     setFactorForImage(factorSpinBox->value());

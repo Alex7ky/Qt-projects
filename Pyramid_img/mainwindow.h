@@ -2,7 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QMap>
 
 class QFileDialog;
 class QLabel;
@@ -25,21 +24,19 @@ private slots:
     void clickedOkFaktor();
 
 private:
-    void createActions();
-    void createMenus();
-    void createMainWidget();
-    void addItemComboBoxLayer();
-    void initWidgets();
+    void createActions(void);
+    void createMenus(void);
+    void createMainWidget(void);
+    void addItemComboBoxLayer(void);
     void fileBoxSetEnabled(bool);
     void factorBoxSetHidden(bool);
-    bool setLoadFile(const QString &);
+    bool loadFile(const QString &);
     void addItemComboBoxFileName(const QString &);
-    void sortItemsComboBox();
+    void sortItemsComboBox(void);
     int getIndexListInfoImage(const QString &);
     void setFactorForImage(double);
-    int calcDiagonalImage();
+    int calcDiagonalImage(void);
 
-    QMap <QString, qreal> map;
     QComboBox *comboBoxFileName;
     QComboBox *comboBoxLayer;
     QLabel *imageLabel;
