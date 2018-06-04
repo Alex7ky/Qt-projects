@@ -11,6 +11,8 @@
 #include <QScrollArea>
 #include <QImageReader>
 #include <QtMath>
+#include <QMessageBox>
+#include <QGuiApplication>
 #include <algorithm>
 
 #define WIDTH 500
@@ -28,19 +30,20 @@ MainWindow::MainWindow(const QString pathName, const double factor)
     factorBoxSetHidden(true);
 
     if (pathName != NULL) {
-        loadFile(pathName);
-        addItemComboBoxFileName(pathName);
-        comboBoxLayer->setCurrentIndex(0);
-        fileBoxSetEnabled(true);
-        setMaxFactorSpinBox();
+        if (loadFile(pathName)) {
+            addItemComboBoxFileName(pathName);
+            comboBoxLayer->setCurrentIndex(0);
+            fileBoxSetEnabled(true);
+            setMaxFactorSpinBox();
 
-        /* Проверяем коэффициент сжатия на валидность */
-        if (factor > 1 && factor < factorSpinBox->maximum()) {
-            setFactorForImage(factor);
-            comboBoxLayer->setCurrentIndex(5);
-            factorSpinBox->setValue(factor);
+            /* Проверяем коэффициент сжатия на валидность */
+            if (factor > 1 && factor < factorSpinBox->maximum()) {
+                setFactorForImage(factor);
+                comboBoxLayer->setCurrentIndex(5);
+                factorSpinBox->setValue(factor);
 
-            factorBoxSetHidden(false);
+                factorBoxSetHidden(false);
+            }
         }
     }
 
@@ -211,14 +214,19 @@ void MainWindow::factorBoxSetHidden(bool hidden)
  * @retval true  Файл загружен
  * @retval false Файл не загружен
  */
+
 bool MainWindow::loadFile(const QString &pathName)
 {
     QImageReader reader(pathName);
     reader.setAutoTransform(true);
     const QImage newImage = reader.read();
 
-    if (newImage.isNull())
+    if (newImage.isNull()) {
+        QMessageBox::information(this, QGuiApplication::applicationDisplayName(),
+                                 tr("Cannot load %1: %2")
+                                 .arg(QDir::toNativeSeparators(pathName), reader.errorString()));
         return false;
+    }
 
     imageLabel->setPixmap(QPixmap::fromImage(newImage));
     imageLabel->resize(newImage.size());
