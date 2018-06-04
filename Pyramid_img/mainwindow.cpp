@@ -16,7 +16,7 @@
 #define WIDTH 500
 #define HEIGHT 500
 
-MainWindow::MainWindow()
+MainWindow::MainWindow(const QString pathName, const double factor)
 {
     listInfoImage = new QList <InfoImage>;
 
@@ -26,6 +26,24 @@ MainWindow::MainWindow()
 
     fileBoxSetEnabled(false);
     factorBoxSetHidden(true);
+
+    if (pathName != NULL) {
+        loadFile(pathName);
+        addItemComboBoxFileName(pathName);
+        comboBoxLayer->setCurrentIndex(0);
+        fileBoxSetEnabled(true);
+        setMaxFactorSpinBox();
+
+        /* Проверяем коэффициент сжатия на валидность */
+        if (factor > 1 && factor < factorSpinBox->maximum()) {
+            setFactorForImage(factor);
+            comboBoxLayer->setCurrentIndex(5);
+            factorSpinBox->setValue(factor);
+
+            factorBoxSetHidden(false);
+        }
+    }
+
 }
 
 MainWindow::~MainWindow()
@@ -138,6 +156,8 @@ void MainWindow::createMainWidget(void)
     setCentralWidget(mainWidget);
 
     setWindowTitle(tr("Pyramid Image Viewer"));
+
+    layout()->setSizeConstraint(QLayout::SetFixedSize);
 
     connect(comboBoxFileName, SIGNAL(activated(int)), this, SLOT(selectFileName()));
     connect(okFactor, SIGNAL(clicked(bool)), this, SLOT(clickedOkFaktor()));
@@ -305,6 +325,23 @@ int MainWindow::calcDiagonalImage(void)
 }
 
 /**
+ * Устанавливает максимальное допустимое значение
+ * сжатия для выбранного изображения currentOriginalImage
+ */
+void MainWindow::setMaxFactorSpinBox(void)
+{
+    /* Выбран "свой вариант" уровня сжатия изображения */
+    double maxFactor = 1;
+
+    /* Определяем максимальный коэффициент сжатия */
+    if (currentOriginalImage->width() <= currentOriginalImage->height())
+        maxFactor = currentOriginalImage->width();
+    else maxFactor = currentOriginalImage->height();
+
+    factorSpinBox->setMaximum(maxFactor);
+}
+
+/**
  * Запускает диалоговое окно для открытия файла
  * с устанавлинными фильтрами JPEG image (*.jpeg *.jpg *.jpe)
  * и PNG image (*.png)
@@ -361,17 +398,12 @@ void MainWindow::selectLayer()
     double factor = comboBoxLayer->currentData().toFloat();
 
     if (factor == 0) {
-        /* Выбран "свой вариант" уровня сжатия изображения */
-        double maxFactor = 1;
         /* Устанавливаем коэффициент сжатия для оригинальнального размера изображения */
         factor = 1;
-        /* Определяем максимальный коэффициент сжатия */
-        if (currentOriginalImage->width() <= currentOriginalImage->height())
-            maxFactor = currentOriginalImage->width();
-        else maxFactor = currentOriginalImage->height();
+
+        setMaxFactorSpinBox();
 
         factorSpinBox->setValue(1.0);
-        factorSpinBox->setMaximum(maxFactor);
 
         factorBoxSetHidden(false);
     } else factorBoxSetHidden(true);

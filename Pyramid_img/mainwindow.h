@@ -14,7 +14,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow();
+    MainWindow(const QString pathName = NULL, const double factor = 1.0);
     ~MainWindow();
 
 private slots:
@@ -36,6 +36,7 @@ private:
     int getIndexListInfoImage(const QString &);
     void setFactorForImage(double);
     int calcDiagonalImage(void);
+    void setMaxFactorSpinBox(void);
 
     QComboBox *comboBoxFileName;
     QComboBox *comboBoxLayer;
